@@ -201,11 +201,3 @@ Engagement scores / kudos leaderboards
 
 
 ---
-
-If you'd like, I can:
-
-- Export this into a `README.md` file
-- Zip the repo as `[your_name].zip` per submission requirements
-- Add a separate `API_SPEC.md` for longer explanations (if needed)
-
-Let me know how you want it packaged for GitHub or final upload.
