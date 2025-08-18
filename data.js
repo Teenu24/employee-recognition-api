@@ -1,177 +1,120 @@
-// In-memory data storage
-const users = new Map();
-const recognitions = new Map();
-const teams = new Map();
+const { v4: uuidv4 } = require('uuid');
 
-// Mock teams
-const mockTeams = [
-  { id: 'team1', name: 'Engineering' },
-  { id: 'team2', name: 'Product' },
-  { id: 'team3', name: 'Marketing' }
-];
+let users = [];
+let teams = [];
+let recognitions = [];
 
-// Mock users
-const mockUsers = [
-  { id: 'user1', email: 'john@company.com', name: 'John Doe', role: 'EMPLOYEE', teamId: 'team1' },
-  { id: 'user2', email: 'jane@company.com', name: 'Jane Smith', role: 'MANAGER', teamId: 'team1' },
-  { id: 'user3', email: 'bob@company.com', name: 'Bob Wilson', role: 'EMPLOYEE', teamId: 'team1' },
-  { id: 'user4', email: 'alice@company.com', name: 'Alice Johnson', role: 'EMPLOYEE', teamId: 'team2' },
-  { id: 'user5', email: 'charlie@company.com', name: 'Charlie Brown', role: 'MANAGER', teamId: 'team2' },
-  { id: 'user6', email: 'diana@company.com', name: 'Diana Prince', role: 'ADMIN', teamId: null },
-  { id: 'user7', email: 'eve@company.com', name: 'Eve Adams', role: 'EMPLOYEE', teamId: 'team3' },
-  { id: 'user8', email: 'frank@company.com', name: 'Frank Castle', role: 'EMPLOYEE', teamId: 'team3' },
-  { id: 'user9', email: 'grace@company.com', name: 'Grace Hopper', role: 'MANAGER', teamId: 'team3' },
-  { id: 'user10', email: 'henry@company.com', name: 'Henry Ford', role: 'EMPLOYEE', teamId: 'team1' }
-];
+const keywordCountsByTeam = new Map();   // teamId => keyword => count
+const monthlyCountsByTeam = new Map();   // teamId => YYYY-MM => count
 
-// Mock recognitions
-const mockRecognitions = [
-  {
-    id: 'rec1',
-    message: 'Great job on the quarterly presentation! 🎯',
-    emoji: '🎯',
-    visibility: 'PUBLIC',
-    senderId: 'user2',
-    recipientId: 'user1',
-    createdAt: new Date(Date.now() - 2 * 24 * 60 * 60 * 1000).toISOString()
-  },
-  {
-    id: 'rec2',
-    message: 'Thank you for staying late to help with the deployment',
-    emoji: '🚀',
-    visibility: 'PUBLIC',
-    senderId: 'user1',
-    recipientId: 'user3',
-    createdAt: new Date(Date.now() - 1 * 24 * 60 * 60 * 1000).toISOString()
-  },
-  {
-    id: 'rec3',
-    message: 'Excellent problem-solving skills during the incident',
-    emoji: '🔧',
-    visibility: 'ANONYMOUS',
-    senderId: 'user2',
-    recipientId: 'user1',
-    createdAt: new Date(Date.now() - 3 * 24 * 60 * 60 * 1000).toISOString()
-  },
-  {
-    id: 'rec4',
-    message: 'Thanks for the code review feedback',
-    emoji: '👍',
-    visibility: 'PRIVATE',
-    senderId: 'user3',
-    recipientId: 'user1',
-    createdAt: new Date(Date.now() - 5 * 24 * 60 * 60 * 1000).toISOString()
-  },
-  {
-    id: 'rec5',
-    message: 'Amazing work on the new feature launch!',
-    emoji: '🌟',
-    visibility: 'PUBLIC',
-    senderId: 'user5',
-    recipientId: 'user4',
-    createdAt: new Date(Date.now() - 1 * 24 * 60 * 60 * 1000).toISOString()
-  },
-  {
-    id: 'rec6',
-    message: 'Your presentation was inspiring',
-    emoji: '💡',
-    visibility: 'PUBLIC',
-    senderId: 'user7',
-    recipientId: 'user9',
-    createdAt: new Date(Date.now() - 6 * 60 * 60 * 1000).toISOString()
-  }
-];
-
-// Initialize data
 function initializeData() {
-  // Load teams
-  mockTeams.forEach(team => teams.set(team.id, team));
-  
-  // Load users
-  mockUsers.forEach(user => users.set(user.id, user));
-  
-  // Load recognitions
-  mockRecognitions.forEach(rec => recognitions.set(rec.id, rec));
+  teams = [
+    { id: 'team1', name: 'Engineering' },
+    { id: 'team2', name: 'Marketing' }
+  ];
+
+  users = [
+    { id: 'user1', name: 'Alice', role: 'EMPLOYEE', teamId: 'team1' },
+    { id: 'user2', name: 'Bob', role: 'MANAGER', teamId: 'team1' },
+    { id: 'user3', name: 'Charlie', role: 'EMPLOYEE', teamId: 'team1' },
+    { id: 'user4', name: 'Dana', role: 'EMPLOYEE', teamId: 'team2' },
+    { id: 'user5', name: 'Eve', role: 'MANAGER', teamId: 'team2' },
+    { id: 'user6', name: 'Admin', role: 'ADMIN', teamId: null }
+  ];
+
+  recognitions = [];
+  keywordCountsByTeam.clear();
+  monthlyCountsByTeam.clear();
 }
 
-// Helper functions
 function generateId() {
-  return Math.random().toString(36).substr(2, 9);
+  return uuidv4();
 }
 
 function getUser(id) {
-  return users.get(id);
+  return users.find(u => u.id === id);
 }
 
 function getUsers() {
-  return Array.from(users.values());
+  return users;
 }
 
 function getTeam(id) {
-  return teams.get(id);
+  return teams.find(t => t.id === id);
 }
 
 function getTeams() {
-  return Array.from(teams.values());
+  return teams;
 }
 
 function getRecognitions() {
-  return Array.from(recognitions.values());
+  return recognitions;
 }
 
-function addRecognition(recognition) {
-  recognitions.set(recognition.id, recognition);
-  return recognition;
-}
+function addRecognition(rec) {
+  recognitions.push(rec);
 
-// Analytics helpers
-function extractKeywords(text) {
-  return text.toLowerCase()
-    .split(/\W+/)
-    .filter(word => word.length > 3)
-    .slice(0, 5); // Top 5 words
+  const recipient = getUser(rec.recipientId);
+  const teamId = recipient?.teamId;
+  const createdAt = rec.createdAt || new Date().toISOString();
+
+  if (teamId) {
+    // Monthly counts
+    const ym = createdAt.slice(0, 7);
+    if (!monthlyCountsByTeam.has(teamId)) monthlyCountsByTeam.set(teamId, new Map());
+    const monthMap = monthlyCountsByTeam.get(teamId);
+    monthMap.set(ym, (monthMap.get(ym) || 0) + 1);
+
+    // Keyword index
+    const keywords = (rec.message || '').toLowerCase().match(/\b[a-z]{3,}\b/g) || [];
+    if (!keywordCountsByTeam.has(teamId)) keywordCountsByTeam.set(teamId, new Map());
+    const kwMap = keywordCountsByTeam.get(teamId);
+    for (const word of keywords) {
+      kwMap.set(word, (kwMap.get(word) || 0) + 1);
+    }
+  }
 }
 
 function getTeamAnalytics(teamId) {
-  const teamRecognitions = getRecognitions().filter(rec => {
-    const recipient = getUser(rec.recipientId);
-    return recipient && recipient.teamId === teamId;
-  });
+  const team = getTeam(teamId);
+  const members = users.filter(u => u.teamId === teamId).map(u => u.id);
 
-  // Extract keywords
-  const allKeywords = teamRecognitions.flatMap(rec => extractKeywords(rec.message));
-  const keywordCounts = {};
-  allKeywords.forEach(word => {
-    keywordCounts[word] = (keywordCounts[word] || 0) + 1;
-  });
+  const totalRecognitions = recognitions.filter(r => members.includes(r.recipientId)).length;
 
-  const topKeywords = Object.entries(keywordCounts)
-    .sort(([,a], [,b]) => b - a)
-    .slice(0, 5)
+  const kwMap = keywordCountsByTeam.get(teamId) || new Map();
+  const topKeywords = [...kwMap.entries()]
+    .sort((a, b) => b[1] - a[1])
+    .slice(0, 10)
     .map(([keyword, count]) => ({ keyword, count }));
 
-  // Monthly counts (simplified - just current month)
-  const recognitionsByMonth = [{
-    month: new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'long' }),
-    count: teamRecognitions.length
-  }];
+  const monMap = monthlyCountsByTeam.get(teamId) || new Map();
+  const recognitionsByMonth = [...monMap.entries()]
+    .sort(([a], [b]) => a.localeCompare(b))
+    .map(([month, count]) => ({ month, count }));
 
-  // Most recognized user in team
-  const recognitionCounts = {};
-  teamRecognitions.forEach(rec => {
-    recognitionCounts[rec.recipientId] = (recognitionCounts[rec.recipientId] || 0) + 1;
-  });
+  const tally = new Map();
+  for (const r of recognitions) {
+    if (members.includes(r.recipientId)) {
+      tally.set(r.recipientId, (tally.get(r.recipientId) || 0) + 1);
+    }
+  }
 
-  const mostRecognizedUserId = Object.entries(recognitionCounts)
-    .sort(([,a], [,b]) => b - a)[0]?.[0];
+  let mostRecognizedUser = null;
+  let max = -1;
+  for (const [uid, count] of tally.entries()) {
+    if (count > max) {
+      max = count;
+      mostRecognizedUser = getUser(uid);
+    }
+  }
 
   return {
     teamId,
-    teamName: getTeam(teamId)?.name || 'Unknown Team',
-    totalRecognitions: teamRecognitions.length,
+    teamName: team?.name || teamId,
+    totalRecognitions,
     topKeywords,
     recognitionsByMonth,
-    mostRecognizedUser: mostRecognizedUserId ? getUser(mostRecognizedUserId) : null
+    mostRecognizedUser
   };
 }
 
@@ -184,8 +127,5 @@ module.exports = {
   getTeams,
   getRecognitions,
   addRecognition,
-  getTeamAnalytics,
-  users,
-  recognitions,
-  teams
+  getTeamAnalytics
 };
