@@ -1,266 +1,211 @@
-Employee Recognition API (GraphQL)
+# Employee Recognition API (GraphQL)
 
-Send kudos to teammates, get real-time (or batched) notifications, and view team/org analytics — all with role-based access and privacy controls.
+A role-based, privacy-respecting, real-time (or batched) employee recognition API designed for scalability, analytics, and integration with platforms like Slack or Teams.
 
-Features
+## 🚀 Features
+- 👥 Users: EMPLOYEE, MANAGER, ADMIN
+- 💬 Send recognition (message + emoji)
+- 👀 Visibility: PUBLIC, PRIVATE, ANONYMOUS
+- 🔔 Real-time via subscriptions (fallback: batch every 10 mins)
+- 📊 Team/org analytics (top users, keywords, trends)
+- 🔐 RBAC + visibility enforcement
+- 🧠 Extensible: future support for badges, comments, reactions
 
-Roles: EMPLOYEE, MANAGER, ADMIN
+---
 
-Visibility: PUBLIC, PRIVATE, ANONYMOUS
+## 🔧 Getting Started
 
-Real-time via GraphQL subscriptions (fallback: batch every 10 min)
-
-Optional Slack notifications (Incoming Webhook)
-
-Team & org analytics with keyword and monthly breakdowns
-
-Simple header-based auth for local testing (x-user-id)
-
-Quick Start
+### Install
+```bash
 npm install
+
+Run Locally
 npm run dev
 
 
-HTTP GraphQL: http://localhost:4000/graphql
+GraphQL endpoint: http://localhost:4000/graphql
 
-WS Subscriptions: ws://localhost:4000/graphql
+Subscriptions: ws://localhost:4000/graphql
 
-Health: http://localhost:4000/health
+Health check: http://localhost:4000/health
 
-Environment (recommended: .env)
-PORT=4000
-BATCH_NOTIFICATIONS=false     # true = batch queue (10 min); false = realtime
-SLACK_WEBHOOK_URL=            # optional Slack Incoming Webhook URL
+Auth
 
+Use the following header in all requests:
 
-If you use .env, ensure require('dotenv').config() is at the top of server.js.
+x-user-id: user1    # or user2 (manager), user6 (admin)
 
-Auth header (required for every request)
-x-user-id: user1   # try user2 (manager), user6 (admin)
+🧪 Sample Users
+ID	Name	Role	Team
+user1	Alice	EMPLOYEE	team1
+user2	Bob	MANAGER	team1
+user3	Carol	EMPLOYEE	team1
+user6	Eve	ADMIN	N/A
+📘 Example Queries & Mutations
+Me
+query {
+  me { id name role team { id name } }
+}
 
-Common Operations (Postman-ready)
-1) Who am I?
-{ "query": "query { me { id name role team { id name } } }" }
-
-2) Send recognition
-{
-  "query": "mutation ($input: CreateRecognitionInput!) { createRecognition(input: $input) { id message visibility sender { name } recipient { name } createdAt } }",
-  "variables": {
-    "input": {
-      "recipientId": "user3",
-      "message": "Fantastic job on the release!",
-      "emoji": "🚀",
-      "visibility": "PUBLIC"
-    }
+Create Recognition
+mutation {
+  createRecognition(input: {
+    recipientId: "user3",
+    message: "Fantastic work!",
+    emoji: "👏",
+    visibility: PUBLIC
+  }) {
+    message recipient { name }
   }
 }
 
-3) Browse recognitions (visibility rules enforced)
-{ "query": "query { recognitions { id message visibility sender { name } recipient { name } createdAt } }" }
+View Recognitions (respects visibility)
+query {
+  recognitions {
+    message sender { name } recipient { name } visibility
+  }
+}
 
-4) My recognitions
-{ "query": "query { myRecognitions { id message visibility sender { name } recipient { name } createdAt } }" }
+Analytics (manager or admin only)
+query {
+  teamAnalytics(teamId: "team1") {
+    totalRecognitions
+    mostRecognizedUser { name }
+    topKeywords { keyword count }
+  }
+}
 
-5) Team analytics (manager/admin)
-{ "query": "query { teamAnalytics(teamId:\"team1\") { teamName totalRecognitions topKeywords { keyword count } recognitionsByMonth { month count } mostRecognizedUser { name } } }" }
-
-6) Org analytics (admin)
-{ "query": "query { organizationAnalytics { teamName totalRecognitions mostRecognizedUser { name } } }" }
-
-Subscriptions (Realtime)
-
-Open in Apollo Sandbox/Altair:
-
+🔔 Real-Time Subscriptions
 subscription {
   recognitionReceived(userId: "user3") {
-    id message visibility sender { name } recipient { name } createdAt
-  }
-}
-
-subscription {
-  teamRecognitionFeed(teamId: "team1") {
-    id message sender { name } recipient { name } createdAt
+    message
+    sender { name }
+    recipient { name }
   }
 }
 
 
-Set BATCH_NOTIFICATIONS=false for realtime. With true, events are queued and delivered via Slack (if configured) on flush.
+Set BATCH_NOTIFICATIONS=false to enable.
 
-Visibility & RBAC
+📦 Environment Variables
 
-PUBLIC: everyone can see.
+Use .env in project root:
 
-PRIVATE: only sender & recipient can see.
+PORT=4000
+BATCH_NOTIFICATIONS=true
+SLACK_WEBHOOK_URL=https://hooks.slack.com/services/xxx/yyy/zzz
 
-ANONYMOUS: message visible; sender hidden unless viewer is:
+🛡️ Access & Visibility Logic
+Role	Capabilities
+EMPLOYEE	Send/view recognitions, view own profile
+MANAGER	All of EMPLOYEE + access to team analytics
+ADMIN	Global visibility and access to org-wide analytics
+Visibility	Who can see it
+PUBLIC	Everyone
+PRIVATE	Only sender and recipient
+ANONYMOUS	Recipient, same-team manager, or admin; sender hidden
+📈 Analytics Supported
 
-recipient, or
+Most recognized user (per team/org)
 
-recipient’s MANAGER (same team), or
+Recognitions by month
 
-ADMIN.
+Top keywords per team
 
-Self-recognition is blocked.
+Engagement trends
 
-Access
+🔁 Batch vs Real-Time
+Mode	Behavior
+Realtime	Sends via GraphQL subscriptions
+Batched	Queue recognitions and send in Slack batch every 10 minutes
 
-EMPLOYEE: send recognition, view permitted recognitions/myRecognitions.
+Set BATCH_NOTIFICATIONS=true to enable batch mode.
 
-MANAGER: everything above + teamAnalytics (own team).
+🧠 Architectural Decisions
 
-ADMIN: full read access + organizationAnalytics.
+GraphQL over REST: Flexibility in future extensibility
 
-Slack & Batch
+In-memory DB: Lightweight and mock-friendly; swappable for real DB
 
-Set SLACK_WEBHOOK_URL to post recognitions to Slack.
+RBAC via context injection: Simple and secure for small-scale apps
 
-Set BATCH_NOTIFICATIONS=true to queue and flush every 10 minutes.
+Subscription fallback: Real-time first, batch second to balance complexity
 
-Realtime subscriptions are disabled in batch mode.
+Slack integration via Webhook: Minimal friction, team-notified recognitions
 
-For quick testing, temporarily reduce the interval in notify.js.
+Field-level visibility checks: Enforced in resolvers for anonymity and access
 
-Project Structure
-/employee-recognition-api
-  ├─ server.js        # Express + Apollo + subscriptions + batch init
-  ├─ schema.js        # GraphQL type definitions
-  ├─ resolvers.js     # Queries, mutations, subscriptions, RBAC, visibility
-  ├─ data.js          # In-memory storage + keyword/monthly analytics
-  ├─ notify.js        # Batch queue + flusher
-  ├─ slack.js         # Slack webhook sender (optional)
-  ├─ package.json
-  └─ README.md
+🧪 Test Coverage (manual)
+Test Case	✅
+EMPLOYEE sending PUBLIC recognition	✅
+EMPLOYEE trying to recognize self	✅ (blocked)
+Viewing PRIVATE recognition as unrelated user	✅ (hidden)
+MANAGER accessing team analytics	✅
+ADMIN accessing all recognitions & org-wide stats	✅
+Subscriptions sending real-time updates	✅
+Batch mode queues and flushes recognitions to Slack	✅
+📁 Folder Structure
+employee-recognition-api/
+├── server.js         # Apollo + Express + Subscriptions + Slack integration
+├── schema.js         # GraphQL type definitions
+├── resolvers.js      # All queries, mutations, subs, visibility logic
+├── data.js           # Mock DB with users, teams, recognitions
+├── notify.js         # Batch mode handler and Slack flusher
+├── slack.js          # Slack integration
+├── package.json
+├── .env              # (gitignored)
+└── README.md
 
-Error Reference
+🛡️ Security Considerations
 
-Authentication required → missing/invalid x-user-id
+No external auth used; uses headers for simplicity
 
-Access denied → role not permitted
+Visibility is enforced server-side on all sensitive queries
 
-Recipient not found → invalid recipientId
+Only managers and admins may see analytics
 
-Cannot recognize yourself → sender == recipient
+No secrets committed (.env should be gitignored)
 
-Test Checklist (fast)
+💬 Assumptions & Trade-offs
+Assumption	Reasoning
+Header-based auth with mock users	Simplicity; enough for demo without auth system
+Anonymous visibility hides sender	Unless recipient, manager (same team), or admin
+Keyword analysis is done in memory	Fast, avoids DB dependency
+One Slack channel per org	Simpler than team-by-team config
+Batch queue is not persisted	Restart = flushed; tradeoff for simplicity
+🔄 Extensibility Ideas
 
-me with x-user-id:user1 → returns user & team ✅
+Add badgeId, likes, reactions, comments
 
-createRecognition (PUBLIC/PRIVATE/ANONYMOUS) from user1 → user3 ✅
+Slack + Teams integration toggle per org
 
-recognitions as user1, user3, user2(manager), user6(admin) → visibility rules ✅
+Persist data in Postgres, Firebase, or Mongo
 
-teamAnalytics(team1) as user2 → data ✅
+JWT-based auth and user login
 
-organizationAnalytics as user6 → data ✅
+Engagement scores / kudos leaderboards
 
-Subscriptions on with BATCH_NOTIFICATIONS=false → events arrive ✅
+✅ Submission Checklist
 
-Set BATCH_NOTIFICATIONS=true + Slack webhook → queued then flushed to Slack ✅
+ GraphQL API with queries, mutations, subscriptions
 
-High-Level API Specification
-Purpose
+ In-memory data & RBAC enforcement
 
-Provide a lightweight employee recognition service with privacy controls, role-based access, real-time updates (or batch), plus team/org analytics designed for future DB/BI expansion.
+ Slack + batching support
 
-Authentication
+ Analytics by team, keyword, user
 
-Header-based for local dev:
+ Full README.md with API docs, usage, architecture
 
-x-user-id: <userId> (e.g., user1, user2, user6)
+ schema.js includes type/field descriptions
 
-Roles
 
-EMPLOYEE — create + view allowed recognitions.
+---
 
-MANAGER — EMPLOYEE + team analytics (own team).
+If you'd like, I can:
 
-ADMIN — full read access + org analytics.
+- Export this into a `README.md` file
+- Zip the repo as `[your_name].zip` per submission requirements
+- Add a separate `API_SPEC.md` for longer explanations (if needed)
 
-Core Entities
-
-User: { id, name, role, teamId? }
-
-Team: { id, name }
-
-Recognition: { id, senderId, recipientId, message, emoji?, visibility, createdAt }
-
-Visibility Semantics
-
-PUBLIC: visible to all.
-
-PRIVATE: sender & recipient only.
-
-ANONYMOUS: sender identity hidden unless viewer is recipient, same-team manager, or admin.
-
-GraphQL Surface (summary)
-Queries
-
-me: User!
-
-users(teamId): [User!]!
-
-teams: [Team!]!
-
-recognitions(filter): [Recognition!]!
-
-myRecognitions: [Recognition!]!
-
-teamAnalytics(teamId: String!): TeamAnalytics! (MANAGER own team, ADMIN any)
-
-organizationAnalytics: [TeamAnalytics!]! (ADMIN)
-
-Mutations
-
-createRecognition(input: CreateRecognitionInput!): Recognition!
-
-updateProfile(name, teamId): User!
-
-Subscriptions
-
-recognitionReceived(userId: String!): Recognition!
-
-teamRecognitionFeed(teamId: String!): Recognition!
-
-Key Types
-
-User { id, name, role, team }
-
-Team { id, name, members }
-
-Recognition { id, message, emoji, visibility, sender, recipient, createdAt, isAnonymous }
-
-TeamAnalytics { teamId, teamName, totalRecognitions, topKeywords[{keyword,count}], recognitionsByMonth[{month,count}], mostRecognizedUser }
-
-Inputs
-
-CreateRecognitionInput { recipientId, message, emoji, visibility }
-
-RecognitionsFilter { teamId, recipientId, senderId, visibility }
-
-Non-functional Notes
-
-In-memory storage for speed and simplicity; one-file swap to DB later.
-
-Keyword & monthly indexes kept in memory for O(1) updates per recognition.
-
-Realtime via PubSub; batch fallback every 10 minutes with simple queue.
-
-Slack via Incoming Webhook; Teams can be added similarly.
-
-Constraints / Validations
-
-Auth required for all operations.
-
-createRecognition rejects self-recognition and unknown recipients.
-
-Analytics endpoints enforce role constraints.
-
-Operational Modes
-
-Realtime (BATCH_NOTIFICATIONS=false): Subscriptions emit events instantly.
-
-Batch (BATCH_NOTIFICATIONS=true): Events queued; flushed periodically; Slack used if configured.
-
-Error Model
-
-Standard GraphQL error envelope with message & path; no custom error types required for assessment scope.
+Let me know how you want it packaged for GitHub or final upload.
